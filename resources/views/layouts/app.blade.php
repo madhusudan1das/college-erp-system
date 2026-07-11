@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>@yield('title', 'College ERP')</title>
-    <meta name="description" content="College ERP System - Comprehensive academic management portal.">
+    <title>@yield('title', 'Smart College Assistant')</title>
+    <meta name="description" content="Smart College Assistant - Comprehensive academic management portal.">
     <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- FontAwesome -->
@@ -312,7 +312,7 @@
                         <i class="fas fa-graduation-cap"></i>
                     </div>
                 </div>
-                <h4 class="mb-1 fw-bold text-white" style="font-size: 1.15rem; letter-spacing: -0.3px;">College ERP</h4>
+                <h4 class="mb-1 fw-bold text-white" style="font-size: 1.15rem; letter-spacing: -0.3px;">Smart College</h4>
                 @if (Auth::user()->role->name === 'admin')
                     <span class="role-badge role-badge-admin mt-1"><i class="fas fa-user-shield"></i> Admin Panel</span>
                 @elseif (Auth::user()->role->name === 'faculty')

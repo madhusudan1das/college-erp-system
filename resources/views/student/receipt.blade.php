@@ -75,7 +75,7 @@
         <!-- Header -->
         <div class="receipt-header d-flex justify-content-between align-items-center position-relative" style="z-index: 1;">
             <div>
-                <h3 class="mb-1 fw-bold">COLLEGE ACADEMIC ERP</h3>
+                <h3 class="mb-1 fw-bold">SMART COLLEGE ASSISTANT</h3>
                 <p class="mb-0 opacity-75 small"><i class="fas fa-map-marker-alt me-1"></i> Campus Main Road, Education District</p>
             </div>
             <div class="text-end">

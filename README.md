@@ -7,9 +7,9 @@
   <img src="https://img.shields.io/badge/Gemini_AI-Integrated-4285F4?style=for-the-badge&logo=google&logoColor=white" alt="Gemini AI">
 </p>
 
-# 🎓 College ERP System
+# 🎓 Smart College Assistant
 
-A **comprehensive, full-featured College Enterprise Resource Planning (ERP)** web application built with **Laravel 10**. It provides role-based dashboards for **Admins**, **Faculty**, and **Students** to manage every aspect of academic and campus life — from attendance and exams to fee payments with **Razorpay** and AI-powered timetable generation with **Google Gemini**.
+A **comprehensive, full-featured Smart College Assistant** web application built with **Laravel 10**. It provides role-based dashboards for **Admins**, **Faculty**, and **Students** to manage every aspect of academic and campus life — from attendance and exams to fee payments with **Razorpay** and AI-powered timetable generation with **Google Gemini**.
 
 ---
 
@@ -74,7 +74,7 @@ A **comprehensive, full-featured College Enterprise Resource Planning (ERP)** we
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                    College ERP System                      │
+│                 Smart College Assistant                  │
 ├──────────────┬──────────────┬──────────────────────────────┤
 │  Admin Panel │ Faculty Panel │     Student Portal           │
 ├──────────────┴──────────────┴──────────────────────────────┤

@@ -466,7 +466,7 @@
                     key: RAZORPAY_KEY,
                     amount: data.amount,
                     currency: data.currency,
-                    name: "College ERP",
+                    name: "Smart College Assistant",
                     description: feeTitle,
                     order_id: data.order_id,
                     prefill: {

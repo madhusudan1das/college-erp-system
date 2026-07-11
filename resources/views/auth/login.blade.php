@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - College ERP System</title>
-    <meta name="description" content="College ERP System - Secure login portal for students, faculty, and administrators.">
+    <title>Login - Smart College Assistant</title>
+    <meta name="description" content="Smart College Assistant - Secure login portal for students, faculty, and administrators.">
     <!-- Bootstrap 5 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- FontAwesome -->
@@ -496,7 +496,7 @@
                     <div class="logo-icon">
                         <i class="fas fa-graduation-cap"></i>
                     </div>
-                    <h3>College ERP</h3>
+                    <h3>Smart College Assistant</h3>
                     <p class="subtitle">Sign in to your account</p>
                 </div>
 
