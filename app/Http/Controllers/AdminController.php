@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use App\Models\Role;
 use App\Models\Student;
@@ -399,7 +400,63 @@ class AdminController extends Controller
         $courses = Course::all();
         $subjects = Subject::all();
         $facultyList = Faculty::all();
-        return view('admin.timetable', compact('timetables', 'departments', 'courses', 'subjects', 'facultyList'));
+
+        // Detect faculty conflicts (same faculty, same day, overlapping time)
+        $facultyConflicts = [];
+        $studentConflicts = [];
+        $grouped = $timetables->groupBy('faculty_id');
+        foreach ($grouped as $facultyId => $slots) {
+            $slotArr = $slots->values()->all();
+            for ($i = 0; $i < count($slotArr); $i++) {
+                for ($j = $i + 1; $j < count($slotArr); $j++) {
+                    $a = $slotArr[$i];
+                    $b = $slotArr[$j];
+                    if ($a->day_of_week === $b->day_of_week && $a->start_time < $b->end_time && $a->end_time > $b->start_time) {
+                        $facultyConflicts[] = [
+                            'faculty' => $a->faculty,
+                            'slot_a' => $a,
+                            'slot_b' => $b,
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Detect student conflicts (same course+semester, same day, overlapping time)
+        $courseGroups = $timetables->groupBy(function ($t) {
+            return $t->course_id . '-' . $t->semester;
+        });
+        foreach ($courseGroups as $key => $slots) {
+            $slotArr = $slots->values()->all();
+            for ($i = 0; $i < count($slotArr); $i++) {
+                for ($j = $i + 1; $j < count($slotArr); $j++) {
+                    $a = $slotArr[$i];
+                    $b = $slotArr[$j];
+                    if ($a->day_of_week === $b->day_of_week && $a->start_time < $b->end_time && $a->end_time > $b->start_time) {
+                        $studentConflicts[] = [
+                            'course' => $a->course,
+                            'semester' => $a->semester,
+                            'slot_a' => $a,
+                            'slot_b' => $b,
+                        ];
+                    }
+                }
+            }
+        }
+
+        // Collect IDs of conflicting timetable entries for highlighting
+        $conflictIds = collect();
+        foreach ($facultyConflicts as $c) {
+            $conflictIds->push($c['slot_a']->id);
+            $conflictIds->push($c['slot_b']->id);
+        }
+        foreach ($studentConflicts as $c) {
+            $conflictIds->push($c['slot_a']->id);
+            $conflictIds->push($c['slot_b']->id);
+        }
+        $conflictIds = $conflictIds->unique()->values();
+
+        return view('admin.timetable', compact('timetables', 'departments', 'courses', 'subjects', 'facultyList', 'facultyConflicts', 'studentConflicts', 'conflictIds'));
     }
 
     public function storeTimetable(Request $request)
@@ -424,6 +481,26 @@ class AdminController extends Controller
         $timetable = Timetable::findOrFail($id);
         $timetable->delete();
         return redirect()->route('admin.timetable')->with('success', 'Timetable slot deleted successfully!');
+    }
+
+    public function updateTimetable(Request $request, $id)
+    {
+        $request->validate([
+            'department_id' => 'required|exists:departments,id',
+            'course_id' => 'required|exists:courses,id',
+            'semester' => 'required|integer|min:1|max:10',
+            'subject_id' => 'required|exists:subjects,id',
+            'faculty_id' => 'required|exists:faculty,id',
+            'day_of_week' => 'required|in:Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday',
+            'start_time' => 'required',
+            'end_time' => 'required|after:start_time',
+            'room' => 'nullable|string|max:50',
+        ]);
+
+        $timetable = Timetable::findOrFail($id);
+        $timetable->update($request->all());
+
+        return redirect()->route('admin.timetable')->with('success', 'Timetable slot updated successfully!');
     }
 
     // Notices CRUD
@@ -865,14 +942,70 @@ class AdminController extends Controller
         $uploads = TimetableUpload::with('uploader')
             ->orderBy('created_at', 'desc')
             ->get();
-            
-        return view('admin.ai_timetable', compact('uploads'));
+        $departments = Department::orderBy('name')->get();
+
+        // Load current timetable for preview
+        $currentTimetable = Timetable::with(['department', 'course', 'subject', 'faculty'])
+            ->orderByRaw("FIELD(day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'), start_time")
+            ->get();
+
+        // Detect existing conflicts
+        $existingFacultyConflicts = [];
+        $existingStudentConflicts = [];
+        $grouped = $currentTimetable->groupBy('faculty_id');
+        foreach ($grouped as $facultyId => $slots) {
+            $slotArr = $slots->values()->all();
+            for ($i = 0; $i < count($slotArr); $i++) {
+                for ($j = $i + 1; $j < count($slotArr); $j++) {
+                    $a = $slotArr[$i]; $b = $slotArr[$j];
+                    if ($a->day_of_week === $b->day_of_week && $a->start_time < $b->end_time && $a->end_time > $b->start_time) {
+                        $existingFacultyConflicts[] = ['faculty' => $a->faculty, 'slot_a' => $a, 'slot_b' => $b];
+                    }
+                }
+            }
+        }
+        $courseGroups = $currentTimetable->groupBy(function ($t) { return $t->course_id . '-' . $t->semester; });
+        foreach ($courseGroups as $key => $slots) {
+            $slotArr = $slots->values()->all();
+            for ($i = 0; $i < count($slotArr); $i++) {
+                for ($j = $i + 1; $j < count($slotArr); $j++) {
+                    $a = $slotArr[$i]; $b = $slotArr[$j];
+                    if ($a->day_of_week === $b->day_of_week && $a->start_time < $b->end_time && $a->end_time > $b->start_time) {
+                        $existingStudentConflicts[] = ['course' => $a->course, 'semester' => $a->semester, 'slot_a' => $a, 'slot_b' => $b];
+                    }
+                }
+            }
+        }
+
+        // Assigned faculty in current timetable
+        $assignedFacultyIds = $currentTimetable->pluck('faculty_id')->unique();
+        $assignedFaculty = Faculty::with('department')->whereIn('id', $assignedFacultyIds)->get();
+
+        // Affected students (students in courses/semesters that have timetable entries)
+        $courseSemPairs = $currentTimetable->map(function($t) { return ['course_id' => $t->course_id, 'semester' => $t->semester]; })->unique();
+        $affectedStudents = collect();
+        foreach ($courseSemPairs as $pair) {
+            $students = Student::with('course')
+                ->where('course_id', $pair['course_id'])
+                ->where('current_semester', $pair['semester'])
+                ->get();
+            $affectedStudents = $affectedStudents->merge($students);
+        }
+        $affectedStudents = $affectedStudents->unique('id');
+
+        return view('admin.ai_timetable', compact(
+            'uploads', 'departments', 'currentTimetable',
+            'existingFacultyConflicts', 'existingStudentConflicts',
+            'assignedFaculty', 'affectedStudents'
+        ));
     }
 
     public function processAiTimetable(Request $request, GeminiAIService $geminiService)
     {
         $request->validate([
             'timetable_file' => 'required|file|mimes:pdf,png,jpg,jpeg|max:20480',
+            'department_id' => 'nullable|exists:departments,id',
+            'semester' => 'nullable|integer|min:1|max:10',
         ]);
 
         $file = $request->file('timetable_file');
@@ -953,43 +1086,174 @@ class AdminController extends Controller
                     $course = $subject->course;
                 }
                 if (!$course && !empty($slot['course_name'])) {
-                    $course = Course::where('name', 'LIKE', '%' . trim($slot['course_name']) . '%')->first();
+                    if ($request->filled('department_id')) {
+                        $course = Course::where('department_id', $request->department_id)
+                            ->where('name', 'LIKE', '%' . trim($slot['course_name']) . '%')
+                            ->first();
+                    } else {
+                        $course = Course::where('name', 'LIKE', '%' . trim($slot['course_name']) . '%')->first();
+                    }
                 }
 
-                if (!$faculty || !$subject || !$course) {
-                    $unmatchedEntries++;
-                    $missing = [];
-                    if (!$faculty) $missing[] = "Faculty ('{$slot['faculty_name']}')";
-                    if (!$subject) $missing[] = "Subject ('{$slot['subject_name']}'" . (!empty($slot['subject_code']) ? " / '{$slot['subject_code']}'" : "") . ")";
-                    if (!$course) $missing[] = "Course ('{$slot['course_name']}')";
+                // --- Automatic Dynamic Creation of Missing Entities ---
+                
+                // 1. Resolve / Create Course and Department
+                if (!$course) {
+                    $courseName = !empty($slot['course_name']) ? trim($slot['course_name']) : 'Computer Science';
                     
-                    $unmatchedReport[] = [
-                        'slot' => $slot,
-                        'reason' => "Could not resolve: " . implode(', ', $missing)
-                    ];
-                    continue;
+                    if ($request->filled('department_id')) {
+                        $course = Course::where('department_id', $request->department_id)
+                            ->where('name', 'LIKE', '%' . $courseName . '%')
+                            ->first();
+                        
+                        if (!$course) {
+                            $course = Course::create([
+                                'name' => $courseName,
+                                'department_id' => $request->department_id,
+                                'duration_years' => 3
+                            ]);
+                        }
+                    } else {
+                        $course = Course::where('name', 'LIKE', '%' . $courseName . '%')->first();
+                        
+                        if (!$course) {
+                            $deptName = !empty($slot['department']) ? trim($slot['department']) : 'Computer Science';
+                            $dept = Department::where('name', 'LIKE', '%' . $deptName . '%')->first();
+                            if (!$dept) {
+                                $deptCode = strtoupper(substr(preg_replace('/[^a-zA-Z0-9]/', '', $deptName), 0, 4));
+                                if (empty($deptCode)) {
+                                    $deptCode = 'CS';
+                                }
+                                $baseCode = $deptCode;
+                                $counter = 1;
+                                while (Department::where('code', $deptCode)->exists()) {
+                                    $deptCode = $baseCode . $counter++;
+                                }
+                                $dept = Department::create([
+                                    'name' => $deptName,
+                                    'code' => $deptCode
+                                ]);
+                            }
+                            
+                            $course = Course::create([
+                                'name' => $courseName,
+                                'department_id' => $dept->id,
+                                'duration_years' => 3
+                            ]);
+                        }
+                    }
                 }
 
-                $departmentId = $course->department_id;
-                $semester = $slot['semester'] ?? $subject->semester ?? 1;
-                $dayOfWeek = ucfirst(strtolower(trim($slot['day_of_week'] ?? '')));
-                $startTime = trim($slot['start_time'] ?? '');
-                $endTime = trim($slot['end_time'] ?? '');
+                $departmentId = $request->input('department_id') ?? $course->department_id;
+                $semester = $request->input('semester') ?? $slot['semester'] ?? $slot['semester_number'] ?? ($subject ? $subject->semester : 1);
+
+                // 2. Resolve / Create Subject
+                if (!$subject) {
+                    $subjectCode = !empty($slot['subject_code']) ? trim($slot['subject_code']) : null;
+                    $subjectName = !empty($slot['subject_name']) ? trim($slot['subject_name']) : 'General Subject';
+                    
+                    if ($subjectCode) {
+                        $subject = Subject::where('code', $subjectCode)->first();
+                    }
+                    if (!$subject) {
+                        $subject = Subject::where('name', 'LIKE', '%' . $subjectName . '%')->first();
+                    }
+                    
+                    if (!$subject) {
+                        if (!$subjectCode) {
+                            $subjectCode = strtoupper(substr(preg_replace('/[^a-zA-Z0-9]/', '', $subjectName), 0, 4)) . rand(100, 999);
+                        }
+                        $baseSubCode = $subjectCode;
+                        $counter = 1;
+                        while (Subject::where('code', $subjectCode)->exists()) {
+                            $subjectCode = $baseSubCode . '_' . $counter++;
+                        }
+                        $subject = Subject::create([
+                            'name' => $subjectName,
+                            'code' => $subjectCode,
+                            'course_id' => $course->id,
+                            'semester' => $semester
+                        ]);
+                    }
+                }
+
+                // 3. Resolve / Create Faculty
+                if (!$faculty) {
+                    $facultyName = !empty($slot['faculty_name']) ? trim($slot['faculty_name']) : 'Temporary Faculty';
+                    $cleanedName = preg_replace('/^(dr\.|prof\.|mr\.|ms\.|mrs\.)\s+/i', '', $facultyName);
+                    $parts = array_filter(explode(' ', $cleanedName));
+                    $firstName = $parts[0] ?? 'Temporary';
+                    $lastName = end($parts);
+                    if ($lastName === $firstName) {
+                        $lastName = 'Faculty';
+                    }
+                    
+                    $username = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $firstName . rand(10, 99)));
+                    while (User::where('username', $username)->exists()) {
+                        $username = strtolower(preg_replace('/[^a-zA-Z0-9]/', '', $firstName . rand(100, 999)));
+                    }
+                    
+                    $role = Role::where('name', 'faculty')->first();
+                    $roleId = $role ? $role->id : 2;
+                    
+                    $user = User::create([
+                        'username' => $username,
+                        'password' => Hash::make('faculty123'),
+                        'email' => $username . '@college.edu',
+                        'role_id' => $roleId
+                    ]);
+                    
+                    $faculty = Faculty::create([
+                        'user_id' => $user->id,
+                        'first_name' => $firstName,
+                        'last_name' => $lastName,
+                        'department_id' => $course->department_id,
+                        'phone' => '0000000000'
+                    ]);
+                }
+                
+                // Associate Subject with Faculty if not done
+                if ($subject && !$subject->faculty_id) {
+                    $subject->update(['faculty_id' => $faculty->id]);
+                }
+                
+                // Robust Day of Week parsing
+                $dayInput = strtolower(trim($slot['day_of_week'] ?? ''));
+                $dayOfWeek = 'Monday'; // default fallback
+                if (str_contains($dayInput, 'mon')) $dayOfWeek = 'Monday';
+                elseif (str_contains($dayInput, 'tue')) $dayOfWeek = 'Tuesday';
+                elseif (str_contains($dayInput, 'wed')) $dayOfWeek = 'Wednesday';
+                elseif (str_contains($dayInput, 'thu')) $dayOfWeek = 'Thursday';
+                elseif (str_contains($dayInput, 'fri')) $dayOfWeek = 'Friday';
+                elseif (str_contains($dayInput, 'sat')) $dayOfWeek = 'Saturday';
+                elseif (str_contains($dayInput, 'sun')) $dayOfWeek = 'Sunday';
+
+                // Robust Start/End Time parsing
+                $startTime = null;
+                if (!empty($slot['start_time'])) {
+                    $ts = strtotime(trim($slot['start_time']));
+                    if ($ts !== false) {
+                        $startTime = date('H:i:00', $ts);
+                    }
+                }
+                $endTime = null;
+                if (!empty($slot['end_time'])) {
+                    $ts = strtotime(trim($slot['end_time']));
+                    if ($ts !== false) {
+                        $endTime = date('H:i:00', $ts);
+                    }
+                }
+                
+                if (!$startTime || !$endTime) {
+                    $startTime = trim($slot['start_time'] ?? '09:00:00');
+                    $endTime = trim($slot['end_time'] ?? '10:00:00');
+                    if (strlen($startTime) == 5) $startTime .= ':00';
+                    if (strlen($endTime) == 5) $endTime .= ':00';
+                }
+
                 $room = trim($slot['room'] ?? '');
 
-                if (strlen($startTime) == 5) $startTime .= ':00';
-                if (strlen($endTime) == 5) $endTime .= ':00';
-
-                $validDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-                if (!in_array($dayOfWeek, $validDays)) {
-                    $unmatchedEntries++;
-                    $unmatchedReport[] = [
-                        'slot' => $slot,
-                        'reason' => "Invalid day of week: '{$dayOfWeek}'"
-                    ];
-                    continue;
-                }
-
+                // Check for faculty conflict (same faculty, same day, overlapping time)
                 $facultyConflict = Timetable::where('faculty_id', $faculty->id)
                     ->where('day_of_week', $dayOfWeek)
                     ->where(function($q) use ($startTime, $endTime) {
@@ -997,6 +1261,16 @@ class AdminController extends Controller
                           ->where('end_time', '>', $startTime);
                     })->first();
 
+                // Check for student group conflict (same course+semester, same day, overlapping time)
+                $studentGroupConflict = Timetable::where('course_id', $course->id)
+                    ->where('semester', $semester)
+                    ->where('day_of_week', $dayOfWeek)
+                    ->where(function($q) use ($startTime, $endTime) {
+                        $q->where('start_time', '<', $endTime)
+                          ->where('end_time', '>', $startTime);
+                    })->first();
+
+                // Check for room conflict
                 $roomConflict = null;
                 if (!empty($room)) {
                     $roomConflict = Timetable::where('room', $room)
@@ -1007,18 +1281,27 @@ class AdminController extends Controller
                         })->first();
                 }
 
-                if ($facultyConflict || $roomConflict) {
+                if ($facultyConflict || $roomConflict || $studentGroupConflict) {
                     $conflictsFound++;
                     $reasons = [];
                     if ($facultyConflict) {
-                        $reasons[] = "Faculty overlap: scheduled for " . $facultyConflict->subject->name . " ({$facultyConflict->start_time} - {$facultyConflict->end_time})";
+                        $fName = $faculty->first_name . ' ' . $faculty->last_name;
+                        $reasons[] = "Teacher conflict: {$fName} is already teaching " . ($facultyConflict->subject->name ?? 'a subject') . " ({$facultyConflict->start_time} - {$facultyConflict->end_time})";
+                    }
+                    if ($studentGroupConflict) {
+                        $reasons[] = "Student group conflict: " . ($course->name ?? 'Course') . " Sem {$semester} already has " . ($studentGroupConflict->subject->name ?? 'a class') . " at this time";
                     }
                     if ($roomConflict) {
-                        $reasons[] = "Room overlap: Room '{$room}' is booked for " . $roomConflict->subject->name . " ({$roomConflict->start_time} - {$roomConflict->end_time})";
+                        $reasons[] = "Room conflict: Room '{$room}' is booked for " . ($roomConflict->subject->name ?? 'a class') . " ({$roomConflict->start_time} - {$roomConflict->end_time})";
                     }
                     $conflictReport[] = [
                         'slot' => $slot,
-                        'reason' => implode(' AND ', $reasons)
+                        'reason' => implode(' | ', $reasons),
+                        'conflict_types' => [
+                            'faculty' => $facultyConflict ? true : false,
+                            'student_group' => $studentGroupConflict ? true : false,
+                            'room' => $roomConflict ? true : false,
+                        ]
                     ];
                     continue;
                 }
@@ -1117,6 +1400,42 @@ class AdminController extends Controller
                 'link' => route('admin.ai-timetable')
             ]);
 
+            // Gather assigned faculty and affected students for the response
+            $allTimetable = Timetable::with(['subject', 'faculty', 'course'])->get();
+            $assignedFacultyIds = $allTimetable->pluck('faculty_id')->unique();
+            $assignedFacultyList = Faculty::with('department')->whereIn('id', $assignedFacultyIds)->get()->map(function($f) use ($allTimetable) {
+                $slotsCount = $allTimetable->where('faculty_id', $f->id)->count();
+                return [
+                    'id' => $f->id,
+                    'name' => $f->first_name . ' ' . $f->last_name,
+                    'department' => $f->department->name ?? 'N/A',
+                    'slots_count' => $slotsCount,
+                ];
+            })->values();
+
+            $courseSemPairs = $allTimetable->map(function($t) { return ['course_id' => $t->course_id, 'semester' => $t->semester]; })->unique();
+            $affectedStudentsList = collect();
+            foreach ($courseSemPairs as $pair) {
+                $students = Student::with('course')
+                    ->where('course_id', $pair['course_id'])
+                    ->where('current_semester', $pair['semester'])
+                    ->get();
+                $affectedStudentsList = $affectedStudentsList->merge($students);
+            }
+            $affectedStudentsList = $affectedStudentsList->unique('id')->map(function($s) {
+                return [
+                    'id' => $s->id,
+                    'name' => $s->first_name . ' ' . $s->last_name,
+                    'enrollment_no' => $s->enrollment_no,
+                    'course' => $s->course->name ?? 'N/A',
+                    'semester' => $s->current_semester,
+                ];
+            })->values();
+
+            // Count teacher and student group conflicts in the conflict report
+            $teacherConflictCount = collect($conflictReport)->filter(function($c) { return ($c['conflict_types']['faculty'] ?? false); })->count();
+            $studentConflictCount = collect($conflictReport)->filter(function($c) { return ($c['conflict_types']['student_group'] ?? false); })->count();
+
             return response()->json([
                 'success' => true,
                 'status' => $finalStatus,
@@ -1125,7 +1444,11 @@ class AdminController extends Controller
                     'upload' => $upload,
                     'created' => $createdSlotsInfo,
                     'conflicts' => $conflictReport,
-                    'unmatched' => $unmatchedReport
+                    'unmatched' => $unmatchedReport,
+                    'assigned_faculty' => $assignedFacultyList,
+                    'affected_students' => $affectedStudentsList,
+                    'teacher_conflict_count' => $teacherConflictCount,
+                    'student_conflict_count' => $studentConflictCount,
                 ]
             ]);
 
@@ -1323,7 +1646,7 @@ class AdminController extends Controller
 
                 $response = \Illuminate\Support\Facades\Http::withHeaders([
                     'Content-Type' => 'application/json'
-                ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $apiKey, [
+                ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . $apiKey, [
                     'contents' => [
                         [
                             'parts' => [
@@ -1408,7 +1731,7 @@ class AdminController extends Controller
 
                 $response = \Illuminate\Support\Facades\Http::withHeaders([
                     'Content-Type' => 'application/json'
-                ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $apiKey, [
+                ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . $apiKey, [
                     'contents' => [
                         [
                             'parts' => [

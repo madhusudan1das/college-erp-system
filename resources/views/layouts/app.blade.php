@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'College ERP')</title>
+    <meta name="description" content="College ERP System - Comprehensive academic management portal.">
     <!-- Bootstrap 5 -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <!-- FontAwesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- DataTables -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.4/css/dataTables.bootstrap5.min.css">
     <!-- Premium Stylesheet -->
@@ -17,8 +18,9 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #f8f9fa;
+            background-color: #f0f2f5;
             color: #333;
+            overflow-x: hidden;
         }
         .wrapper {
             display: flex;
@@ -26,22 +28,22 @@
             align-items: stretch;
         }
         #sidebar {
-            min-width: 250px;
-            max-width: 250px;
-            background: #2c3e50;
+            min-width: 260px;
+            max-width: 260px;
             color: #fff;
-            transition: all 0.3s;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
             min-height: 100vh;
+            position: relative;
+            z-index: 100;
         }
         #sidebar.active {
-            margin-left: -250px;
+            margin-left: -260px;
         }
         #sidebar .sidebar-header {
             padding: 20px;
-            background: #1a252f;
         }
         #sidebar ul.components {
-            padding: 20px 0;
+            padding: 12px 0;
         }
         #sidebar ul li a {
             padding: 15px 20px;
@@ -49,7 +51,7 @@
             display: block;
             color: #ecf0f1;
             text-decoration: none;
-            transition: 0.3s;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
         #sidebar ul li a:hover, #sidebar ul li.active > a {
             color: #fff;
@@ -60,32 +62,45 @@
             margin-right: 10px;
             width: 20px;
             text-align: center;
+            transition: all 0.3s ease;
         }
         #content {
             width: 100%;
-            padding: 20px;
-            transition: all 0.3s;
+            padding: 0;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            min-height: 100vh;
+            background: #f0f2f5;
         }
-        .navbar {
+        .top-navbar {
             background: #fff;
-            border-bottom: 1px solid #dee2e6;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
+            padding: 10px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 90;
+            animation: fadeInDown 0.4s ease forwards;
         }
         .card {
             border: none;
-            border-radius: 10px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            border-radius: 16px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.04);
             margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
         }
         .card-header {
             background: #fff;
             border-bottom: 1px solid #f0f0f0;
             font-weight: 600;
-            border-radius: 10px 10px 0 0 !important;
+            border-radius: 16px 16px 0 0 !important;
+            padding: 16px 20px;
         }
         .stat-card {
             color: #fff;
-            border-radius: 10px;
+            border-radius: 16px;
             padding: 20px;
             display: flex;
             align-items: center;
@@ -104,6 +119,168 @@
         .bg-success-grad { background: linear-gradient(135deg, #2af598 0%, #009efd 100%); }
         .bg-warning-grad { background: linear-gradient(135deg, #f6d365 0%, #fda085 100%); }
         .bg-danger-grad { background: linear-gradient(135deg, #ff0844 0%, #ffb199 100%); }
+
+        /* Sidebar collapse button */
+        .sidebar-toggle-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f0f2f5 !important;
+            border: 1px solid #e2e8f0 !important;
+            color: #475569 !important;
+            box-shadow: none !important;
+            transition: all 0.3s ease;
+        }
+
+        .sidebar-toggle-btn:hover {
+            background: #e2e8f0 !important;
+            transform: none !important;
+        }
+
+        /* User dropdown */
+        .user-dropdown-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: 10px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            color: #334155;
+            font-weight: 600;
+            font-size: 0.9rem;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+
+        .user-dropdown-btn:hover {
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+
+        .user-avatar {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 0.85rem;
+        }
+
+        /* Notification bell */
+        .notification-bell {
+            width: 40px;
+            height: 40px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            color: #475569;
+            transition: all 0.3s;
+            position: relative;
+            text-decoration: none;
+        }
+
+        .notification-bell:hover {
+            background: #f1f5f9;
+            color: #1e293b;
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -4px;
+            right: -4px;
+            background: #ef4444;
+            color: #fff;
+            border-radius: 50%;
+            width: 18px;
+            height: 18px;
+            font-size: 0.65rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            border: 2px solid #fff;
+            animation: scaleIn 0.3s ease forwards;
+        }
+
+        /* Content area */
+        .content-body {
+            padding: 24px;
+        }
+
+        /* Alert styling */
+        .alert {
+            border-radius: 12px;
+            border: none;
+            animation: fadeInDown 0.4s ease forwards;
+        }
+
+        .alert-success {
+            background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(5,150,105,0.05));
+            color: #065f46;
+            border-left: 4px solid #10b981;
+        }
+
+        .alert-danger {
+            background: linear-gradient(135deg, rgba(239,68,68,0.1), rgba(220,38,38,0.05));
+            color: #991b1b;
+            border-left: 4px solid #ef4444;
+        }
+
+        /* Role badge */
+        .role-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .role-badge-admin { background: linear-gradient(135deg, #fecaca, #fee2e2); color: #991b1b; }
+        .role-badge-faculty { background: linear-gradient(135deg, #c7d2fe, #e0e7ff); color: #3730a3; }
+        .role-badge-student { background: linear-gradient(135deg, #a7f3d0, #d1fae5); color: #065f46; }
+
+        /* Dropdown */
+        .dropdown-menu {
+            animation: fadeInUp 0.3s ease forwards;
+            border: none;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+            border-radius: 12px;
+            padding: 8px;
+        }
+
+        .dropdown-item {
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .dropdown-item:hover {
+            background: #f1f5f9;
+        }
+
+        /* Footer gradient line */
+        .footer-gradient {
+            height: 3px;
+            background: linear-gradient(90deg, #4f46e5, #06b6d4, #8b5cf6, #4f46e5);
+            background-size: 300% 100%;
+            animation: gradientBg 4s ease infinite;
+            margin-top: auto;
+        }
     </style>
     @yield('styles')
 </head>
@@ -122,17 +299,26 @@
                 ->count();
         }
     @endphp
+
+    <!-- Page Loading Bar -->
+    <div class="page-loader" id="pageLoader"></div>
+
     <div class="wrapper">
         <!-- Sidebar -->
         <nav id="sidebar">
             <div class="sidebar-header d-flex flex-column align-items-center justify-content-center py-4 text-center">
-                <h4 class="mb-1 fw-bold text-white">College ERP</h4>
+                <div class="mb-2" style="animation: scaleIn 0.5s ease 0.2s both;">
+                    <div style="width: 44px; height: 44px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 12px; display: inline-flex; align-items: center; justify-content: center; font-size: 1.2rem; color: #fff; box-shadow: 0 4px 15px rgba(99,102,241,0.3);">
+                        <i class="fas fa-graduation-cap"></i>
+                    </div>
+                </div>
+                <h4 class="mb-1 fw-bold text-white" style="font-size: 1.15rem; letter-spacing: -0.3px;">College ERP</h4>
                 @if (Auth::user()->role->name === 'admin')
-                    <span class="badge bg-danger text-uppercase fw-bold shadow-sm" style="font-size: 0.75rem; letter-spacing: 0.5px;">Admin Panel</span>
+                    <span class="role-badge role-badge-admin mt-1"><i class="fas fa-user-shield"></i> Admin Panel</span>
                 @elseif (Auth::user()->role->name === 'faculty')
-                    <span class="badge bg-primary text-uppercase fw-bold shadow-sm" style="font-size: 0.75rem; letter-spacing: 0.5px;">Faculty Panel</span>
+                    <span class="role-badge role-badge-faculty mt-1"><i class="fas fa-chalkboard-teacher"></i> Faculty Panel</span>
                 @elseif (Auth::user()->role->name === 'student')
-                    <span class="badge bg-success text-uppercase fw-bold shadow-sm" style="font-size: 0.75rem; letter-spacing: 0.5px;">Student Portal</span>
+                    <span class="role-badge role-badge-student mt-1"><i class="fas fa-user-graduate"></i> Student Portal</span>
                 @endif
             </div>
             <ul class="list-unstyled components">
@@ -206,6 +392,9 @@
                     </li>
                     <li class="{{ Route::is('faculty.my-attendance') ? 'active' : '' }}">
                         <a href="{{ route('faculty.my-attendance') }}"><i class="fas fa-user-check"></i> My Attendance</a>
+                    </li>
+                    <li class="{{ Route::is('faculty.timetable') ? 'active' : '' }}">
+                        <a href="{{ route('faculty.timetable') }}"><i class="fas fa-calendar-alt"></i> My Timetable</a>
                     </li>
                     <li class="{{ Route::is('faculty.attendance') ? 'active' : '' }}">
                         <a href="{{ route('faculty.attendance') }}"><i class="fas fa-clipboard-list"></i> Student Attendance</a>
@@ -289,48 +478,47 @@
 
         <!-- Page Content -->
         <div id="content">
-            <!-- Navbar -->
-            <nav class="navbar navbar-expand-lg navbar-light">
-                <div class="container-fluid">
-                    <button type="button" id="sidebarCollapse" class="btn btn-outline-secondary">
+            <!-- Top Navbar -->
+            <nav class="top-navbar">
+                <div class="d-flex align-items-center justify-content-between">
+                    <button type="button" id="sidebarCollapse" class="sidebar-toggle-btn btn">
                         <i class="fas fa-bars"></i>
                     </button>
-                    <div class="ms-auto d-flex align-items-center">
+
+                    <div class="d-flex align-items-center gap-3">
                         @if (Auth::user()->role->name === 'admin')
-                            <span class="badge bg-premium-danger px-3 py-2 me-3 rounded-pill shadow-sm"><i class="fas fa-user-shield me-1"></i> Admin</span>
+                            <span class="role-badge role-badge-admin"><i class="fas fa-user-shield"></i> Admin</span>
                         @elseif (Auth::user()->role->name === 'faculty')
-                            <span class="badge bg-premium-primary px-3 py-2 me-3 rounded-pill shadow-sm"><i class="fas fa-chalkboard-teacher me-1"></i> Faculty</span>
+                            <span class="role-badge role-badge-faculty"><i class="fas fa-chalkboard-teacher"></i> Faculty</span>
                         @elseif (Auth::user()->role->name === 'student')
-                            <span class="badge bg-premium-success px-3 py-2 me-3 rounded-pill shadow-sm"><i class="fas fa-user-graduate me-1"></i> Student</span>
+                            <span class="role-badge role-badge-student"><i class="fas fa-user-graduate"></i> Student</span>
                         @endif
 
-                        <!-- Notifications Dropdown -->
-                        <div class="dropdown me-3" id="notificationDropdownContainer">
-                            <a class="nav-link text-dark position-relative p-1" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" id="notificationBell">
-                                <i class="fas fa-bell fs-5"></i>
+                        <!-- Notifications -->
+                        <div class="dropdown" id="notificationDropdownContainer">
+                            <a class="notification-bell" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" id="notificationBell">
+                                <i class="fas fa-bell"></i>
                                 @if(isset($unreadCount) && $unreadCount > 0)
-                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" id="notificationCount" style="font-size: 0.6rem; padding: 0.25em 0.5em;">
-                                        {{ $unreadCount }}
-                                    </span>
+                                    <span class="notification-badge" id="notificationCount">{{ $unreadCount }}</span>
                                 @endif
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end shadow border-0 py-0" style="width: 320px; max-height: 400px; overflow-y: auto;" id="notificationList">
-                                <li class="p-3 border-bottom d-flex justify-content-between align-items-center bg-light rounded-top">
-                                    <h6 class="mb-0 fw-bold">Notifications</h6>
+                            <ul class="dropdown-menu dropdown-menu-end shadow-lg" style="width: 340px; max-height: 420px; overflow-y: auto; padding: 0;" id="notificationList">
+                                <li class="px-3 py-3 border-bottom d-flex justify-content-between align-items-center" style="background: #f8fafc; border-radius: 12px 12px 0 0;">
+                                    <h6 class="mb-0 fw-bold" style="font-size: 0.95rem;">Notifications</h6>
                                     @if(isset($unreadCount) && $unreadCount > 0)
-                                        <span class="badge bg-primary rounded-pill" style="background-color: #00bcd4 !important;">{{ $unreadCount }} New</span>
+                                        <span class="badge rounded-pill" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); font-size: 0.7rem; padding: 5px 10px;">{{ $unreadCount }} New</span>
                                     @endif
                                 </li>
                                 @if(isset($unreadNotifications) && count($unreadNotifications) > 0)
                                     @foreach($unreadNotifications as $notification)
                                         <li class="border-bottom">
                                             <a href="{{ $notification->link ?? 'javascript:void(0)' }}" class="dropdown-item p-3 text-wrap notification-item d-flex align-items-start" data-id="{{ $notification->id }}" style="white-space: normal;">
-                                                <div class="bg-light p-2 rounded-circle me-3 text-cyan" style="color: #00bcd4 !important; font-size: 1.1rem; min-width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;">
+                                                <div class="me-3" style="min-width: 38px; height: 38px; background: linear-gradient(135deg, #e0e7ff, #c7d2fe); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: #4f46e5; font-size: 0.95rem;">
                                                     <i class="{{ $notification->icon ?? 'fas fa-bell' }}"></i>
                                                 </div>
                                                 <div style="flex: 1;">
-                                                    <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem; line-height: 1.2;">{{ $notification->title }}</div>
-                                                    <div class="text-muted" style="font-size: 0.75rem; line-height: 1.3;">{{ $notification->message }}</div>
+                                                    <div class="fw-bold text-dark mb-1" style="font-size: 0.85rem; line-height: 1.3;">{{ $notification->title }}</div>
+                                                    <div class="text-muted" style="font-size: 0.75rem; line-height: 1.4;">{{ $notification->message }}</div>
                                                     <div class="text-muted mt-1" style="font-size: 0.65rem;">{{ \Carbon\Carbon::parse($notification->created_at)->diffForHumans() }}</div>
                                                 </div>
                                             </a>
@@ -338,26 +526,30 @@
                                     @endforeach
                                 @else
                                     <li class="p-4 text-center text-muted">
-                                        <i class="fas fa-bell-slash mb-2 fs-4 d-block"></i>
-                                        No new notifications
+                                        <div style="font-size: 2rem; margin-bottom: 8px; opacity: 0.3;"><i class="fas fa-bell-slash"></i></div>
+                                        <p class="mb-0" style="font-size: 0.85rem;">No new notifications</p>
                                     </li>
                                 @endif
                             </ul>
                         </div>
 
+                        <!-- User Dropdown -->
                         <div class="dropdown">
-                            <a class="nav-link dropdown-toggle text-dark fw-medium" href="#" role="button" data-bs-toggle="dropdown">
-                                <i class="fas fa-user-circle me-1"></i> {{ Auth::user()->username }}
+                            <a class="user-dropdown-btn dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" style="text-decoration: none;">
+                                <div class="user-avatar">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                {{ Auth::user()->username }}
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0">
+                            <ul class="dropdown-menu dropdown-menu-end shadow-lg">
                                 <li>
-                                    <a href="{{ route('password.change') }}" class="dropdown-item"><i class="fas fa-key fa-sm fa-fw me-2 text-gray-400"></i> Change Password</a>
+                                    <a href="{{ route('password.change') }}" class="dropdown-item"><i class="fas fa-key me-2 text-muted" style="font-size: 0.85rem;"></i> Change Password</a>
                                 </li>
-                                <li><hr class="dropdown-divider"></li>
+                                <li><hr class="dropdown-divider mx-2"></li>
                                 <li>
                                     <form action="{{ route('logout') }}" method="POST" id="logout-form">
                                         @csrf
-                                        <button type="submit" class="dropdown-item"><i class="fas fa-sign-out-alt fa-sm fa-fw me-2 text-gray-400"></i> Logout</button>
+                                        <button type="submit" class="dropdown-item text-danger"><i class="fas fa-sign-out-alt me-2" style="font-size: 0.85rem;"></i> Logout</button>
                                     </form>
                                 </li>
                             </ul>
@@ -366,16 +558,17 @@
                 </div>
             </nav>
 
-            <div class="container-fluid py-4">
+            <!-- Content Body -->
+            <div class="content-body">
                 @if (session('success'))
                     <div class="alert alert-success alert-dismissible fade show" role="alert">
-                        {{ session('success') }}
+                        <i class="fas fa-check-circle me-2"></i>{{ session('success') }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 @endif
                 @if (session('error'))
                     <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                        {{ session('error') }}
+                        <i class="fas fa-exclamation-triangle me-2"></i>{{ session('error') }}
                         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                     </div>
                 @endif
@@ -392,6 +585,9 @@
 
                 @yield('content')
             </div>
+
+            <!-- Footer gradient line -->
+            <div class="footer-gradient"></div>
         </div>
     </div>
 
@@ -407,17 +603,48 @@
     <!-- Custom Script -->
     <script>
         $(document).ready(function () {
+            // Sidebar toggle with smooth animation
             $('#sidebarCollapse').on('click', function () {
                 $('#sidebar').toggleClass('active');
+                // Rotate the icon
+                $(this).find('i').toggleClass('fa-bars fa-times');
             });
+
+            // Initialize DataTables
             $('.datatable').DataTable();
+
+            // Move all modals to body level to prevent stacking context issues
+            $('.modal').appendTo('body');
+
+            // Page loading bar for navigation
+            $('a[href]').on('click', function(e) {
+                var href = $(this).attr('href');
+                if (href && href !== '#' && href !== 'javascript:void(0)' && !href.startsWith('#') && !$(this).hasClass('dropdown-toggle') && !$(this).hasClass('notification-item')) {
+                    $('#pageLoader').addClass('active');
+                }
+            });
+
+            // Scroll reveal animation
+            function revealOnScroll() {
+                var reveals = document.querySelectorAll('.reveal-on-scroll');
+                reveals.forEach(function(el) {
+                    var windowHeight = window.innerHeight;
+                    var elementTop = el.getBoundingClientRect().top;
+                    if (elementTop < windowHeight - 80) {
+                        el.classList.add('revealed');
+                    }
+                });
+            }
+
+            window.addEventListener('scroll', revealOnScroll);
+            revealOnScroll(); // initial check
 
             // Handle Notification Click / Mark as Read
             $(document).on('click', '.notification-item', function(e) {
                 var notificationId = $(this).data('id');
                 var $item = $(this);
                 var targetUrl = $item.attr('href');
-                
+
                 if (notificationId) {
                     e.preventDefault();
                     $.ajax({
@@ -436,7 +663,7 @@
                                     $('#notificationCount').text(currentCount - 1);
                                 } else {
                                     $('#notificationCount').remove();
-                                    $('#notificationList').html('<li class="p-4 text-center text-muted"><i class="fas fa-bell-slash mb-2 fs-4 d-block"></i>No new notifications</li>');
+                                    $('#notificationList').html('<li class="p-4 text-center text-muted"><div style="font-size: 2rem; margin-bottom: 8px; opacity: 0.3;"><i class="fas fa-bell-slash"></i></div><p class="mb-0" style="font-size: 0.85rem;">No new notifications</p></li>');
                                 }
                             }
                         },

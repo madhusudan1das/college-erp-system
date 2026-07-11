@@ -78,6 +78,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     // Timetable CRUD
     Route::get('/timetable', [AdminController::class, 'timetable'])->name('timetable');
     Route::post('/timetable', [AdminController::class, 'storeTimetable'])->name('timetable.store');
+    Route::put('/timetable/{id}', [AdminController::class, 'updateTimetable'])->name('timetable.update');
     Route::delete('/timetable/{id}', [AdminController::class, 'deleteTimetable'])->name('timetable.delete');
 
     // Notices CRUD
@@ -153,6 +154,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
 Route::middleware(['auth', 'role:faculty'])->prefix('faculty')->name('faculty.')->group(function () {
     Route::get('/dashboard', [FacultyController::class, 'dashboard'])->name('dashboard');
     Route::get('/my-attendance', [FacultyController::class, 'myAttendance'])->name('my-attendance');
+    Route::get('/timetable', [FacultyController::class, 'timetable'])->name('timetable');
     
     // Student Attendance
     Route::get('/attendance', [FacultyController::class, 'attendance'])->name('attendance');

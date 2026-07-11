@@ -155,7 +155,31 @@ class StudentController extends Controller
 
         $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-        return view('student.timetable', compact('timetable', 'days'));
+        // Detect overlapping classes (same day, overlapping time)
+        $conflicts = [];
+        $conflictIds = collect();
+        $grouped = $timetable->groupBy('day_of_week');
+        foreach ($grouped as $day => $daySlots) {
+            $slotArr = $daySlots->values()->all();
+            for ($i = 0; $i < count($slotArr); $i++) {
+                for ($j = $i + 1; $j < count($slotArr); $j++) {
+                    $a = $slotArr[$i];
+                    $b = $slotArr[$j];
+                    if ($a->start_time < $b->end_time && $a->end_time > $b->start_time) {
+                        $conflicts[] = [
+                            'day' => $day,
+                            'slot_a' => $a,
+                            'slot_b' => $b,
+                        ];
+                        $conflictIds->push($a->id);
+                        $conflictIds->push($b->id);
+                    }
+                }
+            }
+        }
+        $conflictIds = $conflictIds->unique()->values();
+
+        return view('student.timetable', compact('timetable', 'days', 'conflicts', 'conflictIds'));
     }
 
     // Exams

@@ -22,6 +22,7 @@ use App\Models\EvaluatorAssignment;
 use App\Models\AppNotification;
 use App\Models\AiAuditLog;
 use App\Models\LeaveApplication;
+use App\Models\Timetable;
 use App\Services\GeminiAIService;
 
 class FacultyController extends Controller
@@ -44,7 +45,52 @@ class FacultyController extends Controller
             ->orWhere('role_id', Auth::user()->role_id)
             ->count();
 
-        return view('faculty.dashboard', compact('faculty', 'assigned_subjects', 'assignments_count', 'exams_count', 'notices_count'));
+        $today = date('l');
+        $today_classes = Timetable::with(['subject', 'course'])
+            ->where('faculty_id', $faculty->id)
+            ->where('day_of_week', $today)
+            ->orderBy('start_time')
+            ->get();
+
+        return view('faculty.dashboard', compact('faculty', 'assigned_subjects', 'assignments_count', 'exams_count', 'notices_count', 'today_classes'));
+    }
+
+    // Faculty Timetable
+    public function timetable()
+    {
+        $faculty = $this->getFaculty();
+        $timetable = Timetable::with(['subject', 'course', 'department'])
+            ->where('faculty_id', $faculty->id)
+            ->orderByRaw("FIELD(day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'), start_time")
+            ->get();
+
+        $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+        // Detect overlapping classes (same day, overlapping time)
+        $conflicts = [];
+        $conflictIds = collect();
+        $grouped = $timetable->groupBy('day_of_week');
+        foreach ($grouped as $day => $daySlots) {
+            $slotArr = $daySlots->values()->all();
+            for ($i = 0; $i < count($slotArr); $i++) {
+                for ($j = $i + 1; $j < count($slotArr); $j++) {
+                    $a = $slotArr[$i];
+                    $b = $slotArr[$j];
+                    if ($a->start_time < $b->end_time && $a->end_time > $b->start_time) {
+                        $conflicts[] = [
+                            'day' => $day,
+                            'slot_a' => $a,
+                            'slot_b' => $b,
+                        ];
+                        $conflictIds->push($a->id);
+                        $conflictIds->push($b->id);
+                    }
+                }
+            }
+        }
+        $conflictIds = $conflictIds->unique()->values();
+
+        return view('faculty.timetable', compact('timetable', 'days', 'conflicts', 'conflictIds'));
     }
 
     // My Attendance
@@ -707,7 +753,7 @@ class FacultyController extends Controller
                 // Call Gemini API using HTTP facade
                 $response = \Illuminate\Support\Facades\Http::withHeaders([
                     'Content-Type' => 'application/json'
-                ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $apiKey, [
+                ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . $apiKey, [
                     'contents' => [
                         [
                             'parts' => [
@@ -1139,7 +1185,7 @@ class FacultyController extends Controller
                 // Call Gemini API using HTTP facade
                 $response = \Illuminate\Support\Facades\Http::withHeaders([
                     'Content-Type' => 'application/json'
-                ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=" . $apiKey, [
+                ])->post("https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . $apiKey, [
                     'contents' => [
                         [
                             'parts' => [

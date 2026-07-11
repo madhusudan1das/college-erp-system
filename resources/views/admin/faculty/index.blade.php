@@ -165,8 +165,9 @@
 <script>
 $(document).ready(function() {
     // Row click handler to show details modal (excluding the Actions cell)
-    $('.clickable-row td:not(:last-child)').on('click', function() {
-        const row = $(this).parent('.clickable-row');
+    // Using event delegation so it works with DataTables (which recreates DOM rows)
+    $(document).on('click', '.clickable-row td:not(:last-child)', function() {
+        const row = $(this).closest('.clickable-row');
         
         const firstName = row.data('first-name');
         const lastName = row.data('last-name');

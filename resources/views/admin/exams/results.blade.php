@@ -142,7 +142,8 @@
 @section('scripts')
 <script>
 $(document).ready(function() {
-    $('.btn-review-attempt').on('click', function() {
+    // Using event delegation so it works with DataTables (which recreates DOM rows)
+    $(document).on('click', '.btn-review-attempt', function() {
         const attemptId = $(this).data('id');
         const modal = $('#reviewAttemptModal');
         const content = $('#reviewAttemptModalContent');
