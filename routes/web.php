@@ -251,7 +251,8 @@ Route::middleware(['auth', 'role:student'])->prefix('student')->name('student.')
 
     // Fees Portal
     Route::get('/fees', [StudentController::class, 'fees'])->name('fees');
-    Route::post('/fees/{id}/pay', [StudentController::class, 'payFee'])->name('fees.pay');
+    Route::post('/fees/{id}/initiate', [StudentController::class, 'initiatePayment'])->name('fees.initiate');
+    Route::post('/fees/verify', [StudentController::class, 'verifyPayment'])->name('fees.verify');
     Route::get('/fees/{id}/receipt', [StudentController::class, 'viewReceipt'])->name('fees.receipt');
 
     // Campus Services

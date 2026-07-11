@@ -143,6 +143,25 @@
                 </table>
             </div>
 
+            @if($fee->razorpay_payment_id || $fee->payment_method)
+            <hr class="my-4 opacity-25">
+            <h5 class="fw-bold text-dark mb-3"><i class="fas fa-credit-card me-2 text-muted"></i>Payment Gateway Details</h5>
+            <div class="row g-3 mb-4">
+                @if($fee->razorpay_payment_id)
+                <div class="col-sm-6">
+                    <label class="text-uppercase small fw-bold text-muted d-block">Razorpay Payment ID</label>
+                    <span class="font-monospace fw-bold" style="color: #6366f1;">{{ $fee->razorpay_payment_id }}</span>
+                </div>
+                @endif
+                @if($fee->payment_method)
+                <div class="col-sm-6">
+                    <label class="text-uppercase small fw-bold text-muted d-block">Payment Method</label>
+                    <span class="fw-semibold text-dark text-capitalize">{{ $fee->payment_method }}</span>
+                </div>
+                @endif
+            </div>
+            @endif
+
             <!-- Footer Details -->
             <div class="row mt-5 pt-4 border-top">
                 <div class="col-8">

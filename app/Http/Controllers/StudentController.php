@@ -412,25 +412,100 @@ class StudentController extends Controller
         $fees = \App\Models\Fee::where('student_id', $student->id)
             ->orderBy('created_at', 'desc')
             ->get();
-        return view('student.fees', compact('fees'));
+
+        $razorpayKey = config('razorpay.key_id');
+
+        return view('student.fees', compact('fees', 'student', 'razorpayKey'));
     }
 
-    public function payFee(Request $request, $id)
+    public function initiatePayment(Request $request, $id)
     {
         $student = $this->getStudent();
         $fee = \App\Models\Fee::where('student_id', $student->id)->findOrFail($id);
 
         if ($fee->status === 'paid') {
-            return back()->with('error', 'Fee already paid.');
+            return response()->json(['error' => 'Fee already paid.'], 400);
         }
 
-        $fee->update([
-            'status' => 'paid',
-            'paid_at' => now(),
-            'transaction_no' => 'TXN' . time() . rand(100, 999),
+        try {
+            $api = new \Razorpay\Api\Api(config('razorpay.key_id'), config('razorpay.key_secret'));
+
+            $order = $api->order->create([
+                'receipt' => 'FEE_' . $fee->id . '_' . time(),
+                'amount' => intval($fee->amount * 100), // Amount in paise
+                'currency' => 'INR',
+                'notes' => [
+                    'fee_id' => $fee->id,
+                    'student_id' => $student->id,
+                    'student_name' => $student->first_name . ' ' . $student->last_name,
+                    'enrollment_no' => $student->enrollment_no,
+                ],
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'order_id' => $order->id,
+                'amount' => $order->amount,
+                'currency' => $order->currency,
+                'fee_id' => $fee->id,
+                'student_name' => $student->first_name . ' ' . $student->last_name,
+                'student_email' => Auth::user()->email ?? '',
+                'student_phone' => $student->phone ?? '',
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Failed to create payment order: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function verifyPayment(Request $request)
+    {
+        $request->validate([
+            'razorpay_payment_id' => 'required|string',
+            'razorpay_order_id' => 'required|string',
+            'razorpay_signature' => 'required|string',
+            'fee_id' => 'required|integer',
         ]);
 
-        return redirect()->route('student.fees')->with('success', 'Fee paid successfully! Transaction ID: ' . $fee->transaction_no);
+        $student = $this->getStudent();
+        $fee = \App\Models\Fee::where('student_id', $student->id)->findOrFail($request->fee_id);
+
+        if ($fee->status === 'paid') {
+            return response()->json(['error' => 'Fee already paid.'], 400);
+        }
+
+        try {
+            $api = new \Razorpay\Api\Api(config('razorpay.key_id'), config('razorpay.key_secret'));
+
+            // Verify signature
+            $attributes = [
+                'razorpay_order_id' => $request->razorpay_order_id,
+                'razorpay_payment_id' => $request->razorpay_payment_id,
+                'razorpay_signature' => $request->razorpay_signature,
+            ];
+
+            $api->utility->verifyPaymentSignature($attributes);
+
+            // Signature verified — mark fee as paid
+            $fee->update([
+                'status' => 'paid',
+                'paid_at' => now(),
+                'transaction_no' => 'RZP' . strtoupper(substr(md5(time()), 0, 10)),
+                'razorpay_payment_id' => $request->razorpay_payment_id,
+                'payment_method' => 'razorpay',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment verified successfully!',
+                'transaction_no' => $fee->transaction_no,
+                'razorpay_payment_id' => $fee->razorpay_payment_id,
+                'receipt_url' => route('student.fees.receipt', $fee->id),
+            ]);
+        } catch (\Razorpay\Api\Errors\SignatureVerificationError $e) {
+            return response()->json(['error' => 'Payment verification failed. Invalid signature.'], 400);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Payment verification failed: ' . $e->getMessage()], 500);
+        }
     }
 
     public function viewReceipt($id)
